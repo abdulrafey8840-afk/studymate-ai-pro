@@ -9,6 +9,8 @@ import {
   Clock3,
 } from "lucide-react";
 
+import { Link } from "react-router-dom";
+
 import Card from "../components/common/Card";
 import { checkBackendHealth } from "../services/api";
 
@@ -39,6 +41,7 @@ function Dashboard() {
         await checkBackendHealth();
         setBackendStatus("online");
       } catch (error) {
+        console.error("Backend health check failed:", error);
         setBackendStatus("offline");
       }
     }
@@ -71,7 +74,9 @@ function Dashboard() {
 
   return (
     <div className="page">
-      {/* Welcome Section */}
+      {/* =========================
+          Welcome Section
+      ========================== */}
       <section className="welcome-section">
         <div>
           <span className="eyebrow">
@@ -93,13 +98,17 @@ function Dashboard() {
         </div>
       </section>
 
-      {/* Backend Status */}
+      {/* =========================
+          Backend Status
+      ========================== */}
       <div className={`backend-status ${status.className}`}>
         <span className="status-dot"></span>
         {status.text}
       </div>
 
-      {/* Statistics */}
+      {/* =========================
+          Statistics
+      ========================== */}
       <section className="stats-grid">
         <Card>
           <div className="stat-icon purple">
@@ -107,8 +116,13 @@ function Dashboard() {
           </div>
 
           <div>
-            <span className="stat-label">Documents</span>
-            <strong className="stat-value">12</strong>
+            <span className="stat-label">
+              Documents
+            </span>
+
+            <strong className="stat-value">
+              12
+            </strong>
           </div>
         </Card>
 
@@ -118,8 +132,13 @@ function Dashboard() {
           </div>
 
           <div>
-            <span className="stat-label">AI Questions</span>
-            <strong className="stat-value">48</strong>
+            <span className="stat-label">
+              AI Questions
+            </span>
+
+            <strong className="stat-value">
+              48
+            </strong>
           </div>
         </Card>
 
@@ -129,8 +148,13 @@ function Dashboard() {
           </div>
 
           <div>
-            <span className="stat-label">Quizzes</span>
-            <strong className="stat-value">8</strong>
+            <span className="stat-label">
+              Quizzes
+            </span>
+
+            <strong className="stat-value">
+              8
+            </strong>
           </div>
         </Card>
 
@@ -140,95 +164,132 @@ function Dashboard() {
           </div>
 
           <div>
-            <span className="stat-label">Study Hours</span>
-            <strong className="stat-value">24h</strong>
+            <span className="stat-label">
+              Study Hours
+            </span>
+
+            <strong className="stat-value">
+              24h
+            </strong>
           </div>
         </Card>
       </section>
 
-      {/* Quick Actions */}
+      {/* =========================
+          Quick Actions
+      ========================== */}
       <section className="section-heading">
         <div>
           <h2>Quick Actions</h2>
-          <p>Start your next learning activity.</p>
+          <p>
+            Start your next learning activity.
+          </p>
         </div>
       </section>
 
       <section className="quick-grid">
-        <a href="/documents" className="quick-card">
+        {/* Upload Documents */}
+        <Link
+          to="/documents"
+          className="quick-card"
+        >
           <div className="quick-icon purple">
             <FileText />
           </div>
 
           <div>
             <h3>Upload Documents</h3>
+
             <p>
               Add PDF notes to your learning workspace.
             </p>
           </div>
 
           <ArrowRight />
-        </a>
+        </Link>
 
-        <a href="/chat" className="quick-card">
+        {/* Ask AI */}
+        <Link
+          to="/chat"
+          className="quick-card"
+        >
           <div className="quick-icon blue">
             <MessageSquare />
           </div>
 
           <div>
             <h3>Ask AI</h3>
+
             <p>
               Ask questions from your study material.
             </p>
           </div>
 
           <ArrowRight />
-        </a>
+        </Link>
 
-        <a href="/quiz" className="quick-card">
+        {/* Generate Quiz */}
+        <Link
+          to="/quiz"
+          className="quick-card"
+        >
           <div className="quick-icon green">
             <Brain />
           </div>
 
           <div>
             <h3>Generate Quiz</h3>
+
             <p>
               Test your knowledge with AI generated questions.
             </p>
           </div>
 
           <ArrowRight />
-        </a>
+        </Link>
 
-        <a href="/summarizer" className="quick-card">
+        {/* Summarize */}
+        <Link
+          to="/summarizer"
+          className="quick-card"
+        >
           <div className="quick-icon orange">
             <Sparkles />
           </div>
 
           <div>
             <h3>Summarize</h3>
+
             <p>
               Turn long notes into useful key points.
             </p>
           </div>
 
           <ArrowRight />
-        </a>
+        </Link>
       </section>
 
-      {/* Content Grid */}
+      {/* =========================
+          Content Grid
+      ========================== */}
       <section className="content-grid">
-        {/* Recent Documents */}
+
+        {/* =========================
+            Recent Documents
+        ========================== */}
         <Card>
           <div className="card-heading">
             <div>
               <h2>Recent Documents</h2>
+
               <p>
                 Your recently added study material.
               </p>
             </div>
 
-            <a href="/documents">View all</a>
+            <Link to="/documents">
+              View all
+            </Link>
           </div>
 
           <div className="document-list">
@@ -242,8 +303,13 @@ function Dashboard() {
                 </div>
 
                 <div className="document-info">
-                  <strong>{doc.name}</strong>
-                  <span>{doc.pages} pages</span>
+                  <strong>
+                    {doc.name}
+                  </strong>
+
+                  <span>
+                    {doc.pages} pages
+                  </span>
                 </div>
 
                 <span className="status-badge">
@@ -254,11 +320,14 @@ function Dashboard() {
           </div>
         </Card>
 
-        {/* Study Progress */}
+        {/* =========================
+            Study Progress
+        ========================== */}
         <Card>
           <div className="card-heading">
             <div>
               <h2>Study Progress</h2>
+
               <p>
                 This week's learning activity.
               </p>
@@ -267,20 +336,31 @@ function Dashboard() {
 
           <div className="progress-circle">
             <div>
-              <strong>72%</strong>
-              <span>Completed</span>
+              <strong>
+                72%
+              </strong>
+
+              <span>
+                Completed
+              </span>
             </div>
           </div>
 
           <div className="progress-info">
-            <span>Weekly study goal</span>
-            <strong>18 / 25 hours</strong>
+            <span>
+              Weekly study goal
+            </span>
+
+            <strong>
+              18 / 25 hours
+            </strong>
           </div>
 
           <div className="progress-bar">
             <span></span>
           </div>
         </Card>
+
       </section>
     </div>
   );
