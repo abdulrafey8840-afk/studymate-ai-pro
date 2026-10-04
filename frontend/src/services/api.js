@@ -1,7 +1,10 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL =
+  "https://studymate-ai-pro-g11b.onrender.com";
 
 export async function checkBackendHealth() {
-  const response = await fetch(`${API_BASE_URL}/api/health`);
+  const response = await fetch(
+    `${API_BASE_URL}/api/health`
+  );
 
   if (!response.ok) {
     throw new Error("Backend is not available.");
