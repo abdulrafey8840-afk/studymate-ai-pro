@@ -1,0 +1,18 @@
+fastapi
+uvicorn[standard]
+python-multipart
+
+# PDF Processing
+pypdf
+
+# LangChain
+langchain
+langchain-ollama
+langchain-chroma
+langchain-text-splitters
+
+# Vector Database
+chromadb
+
+# Environment Configuration
+python-dotenv
