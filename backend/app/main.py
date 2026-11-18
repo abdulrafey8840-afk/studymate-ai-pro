@@ -1,4 +1,5 @@
 """The main FastAPI application for StudyMate AI."""
+from app.services.chat_service import ask_question_from_pdf
 
 from pathlib import Path
 
@@ -81,3 +82,44 @@ async def upload_pdf(file: UploadFile = File(...)):
         "path": str(file_path),
         "extracted_text": extracted_text,
     }
+from pydantic import BaseModel
+
+
+class PDFChatRequest(BaseModel):
+    filename: str
+    question: str
+
+
+@app.post("/api/chat-pdf")
+async def chat_with_pdf(request: PDFChatRequest):
+    """Answer questions using an uploaded PDF."""
+
+    safe_filename = Path(request.filename).name
+    file_path = UPLOAD_DIR / safe_filename
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="PDF not found. Please upload the PDF first.",
+        )
+
+    try:
+        pdf_text = extract_text_from_pdf(str(file_path))
+
+        answer = ask_question_from_pdf(
+            pdf_text,
+            request.question,
+        )
+
+        return {
+            "message": "Answer generated successfully.",
+            "filename": safe_filename,
+            "question": request.question,
+            "answer": answer,
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI question answering failed: {error}",
+        ) from error  
