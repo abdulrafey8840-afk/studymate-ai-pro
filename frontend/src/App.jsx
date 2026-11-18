@@ -8,6 +8,7 @@ import Documents from "./pages/Documents";
 import StudyChat from "./pages/StudyChat";
 import Summarizer from "./pages/Summarizer";
 import Quiz from "./pages/Quiz";
+import Flashcards from "./pages/Flashcards";
 import StudyPlanner from "./pages/StudyPlanner";
 import Evaluation from "./pages/Evaluation";
 import Settings from "./pages/Settings";
@@ -37,6 +38,11 @@ function App() {
           <Route
             path="/quiz"
             element={<Quiz />}
+          />
+          
+          <Route
+            path="/flashcards"
+            element={<Flashcards />}
           />
 
           <Route

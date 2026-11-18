@@ -4,6 +4,7 @@ import {
   MessageSquare,
   Sparkles,
   Brain,
+  Layers,
   CalendarDays,
   BarChart3,
   Settings,
@@ -40,6 +41,11 @@ const menuItems = [
     path: "/quiz",
     icon: Brain,
   },
+  {
+  label: "AI Flashcards",
+  path: "/flashcards",
+  icon: Layers,
+},
   {
     label: "Study Planner",
     path: "/planner",

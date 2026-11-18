@@ -1,34 +1,57 @@
 import { useEffect, useState } from "react";
+import "./Dashboard.css";
 
 import {
   FileText,
   MessageSquare,
   Brain,
   Sparkles,
-  ArrowRight,
+  ArrowUpRight,
   Clock3,
+  ShieldCheck,
+  Zap,
+  BookOpen,
+  GraduationCap,
+  Activity,
+  CheckCircle2,
+  CalendarDays,
 } from "lucide-react";
 
 import { Link } from "react-router-dom";
-
-import Card from "../components/common/Card";
 import { checkBackendHealth } from "../services/api";
 
-const recentDocuments = [
+const tools = [
   {
-    name: "Machine Learning Notes.pdf",
-    pages: 42,
-    status: "Ready",
+    title: "Chat with PDF",
+    description: "Ask questions and understand your documents with AI.",
+    icon: MessageSquare,
+    color: "violet",
+    path: "/chat",
+    tag: "AI ASSISTANT",
   },
   {
-    name: "Deep Learning Unit 3.pdf",
-    pages: 28,
-    status: "Ready",
+    title: "PDF Summarizer",
+    description: "Convert lengthy study material into smart revision notes.",
+    icon: Sparkles,
+    color: "blue",
+    path: "/summarizer",
+    tag: "SMART NOTES",
   },
   {
-    name: "DBMS Revision.pdf",
-    pages: 19,
-    status: "Ready",
+    title: "AI Quiz",
+    description: "Test your understanding with intelligent quizzes.",
+    icon: Brain,
+    color: "green",
+    path: "/quiz",
+    tag: "PRACTICE",
+  },
+  {
+    title: "My Documents",
+    description: "Keep your study PDFs organised in one workspace.",
+    icon: FileText,
+    color: "orange",
+    path: "/documents",
+    tag: "LIBRARY",
   },
 ];
 
@@ -36,332 +59,218 @@ function Dashboard() {
   const [backendStatus, setBackendStatus] = useState("checking");
 
   useEffect(() => {
+    let active = true;
+
     async function checkServer() {
       try {
         await checkBackendHealth();
-        setBackendStatus("online");
-      } catch (error) {
-        console.error("Backend health check failed:", error);
-        setBackendStatus("offline");
+        if (active) setBackendStatus("online");
+      } catch {
+        if (active) setBackendStatus("offline");
       }
     }
 
     checkServer();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const getBackendStatus = () => {
-    if (backendStatus === "online") {
-      return {
-        text: "Backend Online",
-        className: "online",
-      };
-    }
-
-    if (backendStatus === "offline") {
-      return {
-        text: "Backend Offline",
-        className: "offline",
-      };
-    }
-
-    return {
-      text: "Checking...",
-      className: "checking",
-    };
-  };
-
-  const status = getBackendStatus();
-
   return (
-    <div className="page">
-      {/* =========================
-          Welcome Section
-      ========================== */}
-      <section className="welcome-section">
-        <div>
-          <span className="eyebrow">
-            YOUR AI LEARNING WORKSPACE
-          </span>
+    <div className="page dashboard-page">
 
-          <h1>السلام عليكم, Abdul Rafey 👋</h1>
+      {/* Welcome Hero */}
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-content">
+          <div className="dashboard-eyebrow">
+            <Sparkles size={14} />
+            YOUR PERSONAL AI LEARNING SPACE
+          </div>
+
+          <h1>
+            Learn smarter.
+            <br />
+            <span>Achieve more.</span>
+          </h1>
 
           <p>
-            Learn smarter with your personal AI study assistant.
-            Upload your notes, ask questions and generate learning
-            material.
+            Your intelligent study companion is ready.
+            Explore your documents, understand complex topics
+            and make every study session count.
           </p>
-        </div>
 
-        <div className="welcome-badge">
-          <Sparkles size={18} />
-          AI Powered
-        </div>
-      </section>
+          <div className="dashboard-hero-actions">
+            <Link to="/chat" className="dashboard-primary-btn">
+              <MessageSquare size={17} />
+              Start Learning
+              <ArrowUpRight size={17} />
+            </Link>
 
-      {/* =========================
-          Backend Status
-      ========================== */}
-      <div className={`backend-status ${status.className}`}>
-        <span className="status-dot"></span>
-        {status.text}
-      </div>
-
-      {/* =========================
-          Statistics
-      ========================== */}
-      <section className="stats-grid">
-        <Card>
-          <div className="stat-icon purple">
-            <FileText size={21} />
-          </div>
-
-          <div>
-            <span className="stat-label">
-              Documents
-            </span>
-
-            <strong className="stat-value">
-              12
-            </strong>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="stat-icon blue">
-            <MessageSquare size={21} />
-          </div>
-
-          <div>
-            <span className="stat-label">
-              AI Questions
-            </span>
-
-            <strong className="stat-value">
-              48
-            </strong>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="stat-icon green">
-            <Brain size={21} />
-          </div>
-
-          <div>
-            <span className="stat-label">
-              Quizzes
-            </span>
-
-            <strong className="stat-value">
-              8
-            </strong>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="stat-icon orange">
-            <Clock3 size={21} />
-          </div>
-
-          <div>
-            <span className="stat-label">
-              Study Hours
-            </span>
-
-            <strong className="stat-value">
-              24h
-            </strong>
-          </div>
-        </Card>
-      </section>
-
-      {/* =========================
-          Quick Actions
-      ========================== */}
-      <section className="section-heading">
-        <div>
-          <h2>Quick Actions</h2>
-          <p>
-            Start your next learning activity.
-          </p>
-        </div>
-      </section>
-
-      <section className="quick-grid">
-        {/* Upload Documents */}
-        <Link
-          to="/documents"
-          className="quick-card"
-        >
-          <div className="quick-icon purple">
-            <FileText />
-          </div>
-
-          <div>
-            <h3>Upload Documents</h3>
-
-            <p>
-              Add PDF notes to your learning workspace.
-            </p>
-          </div>
-
-          <ArrowRight />
-        </Link>
-
-        {/* Ask AI */}
-        <Link
-          to="/chat"
-          className="quick-card"
-        >
-          <div className="quick-icon blue">
-            <MessageSquare />
-          </div>
-
-          <div>
-            <h3>Ask AI</h3>
-
-            <p>
-              Ask questions from your study material.
-            </p>
-          </div>
-
-          <ArrowRight />
-        </Link>
-
-        {/* Generate Quiz */}
-        <Link
-          to="/quiz"
-          className="quick-card"
-        >
-          <div className="quick-icon green">
-            <Brain />
-          </div>
-
-          <div>
-            <h3>Generate Quiz</h3>
-
-            <p>
-              Test your knowledge with AI generated questions.
-            </p>
-          </div>
-
-          <ArrowRight />
-        </Link>
-
-        {/* Summarize */}
-        <Link
-          to="/summarizer"
-          className="quick-card"
-        >
-          <div className="quick-icon orange">
-            <Sparkles />
-          </div>
-
-          <div>
-            <h3>Summarize</h3>
-
-            <p>
-              Turn long notes into useful key points.
-            </p>
-          </div>
-
-          <ArrowRight />
-        </Link>
-      </section>
-
-      {/* =========================
-          Content Grid
-      ========================== */}
-      <section className="content-grid">
-
-        {/* =========================
-            Recent Documents
-        ========================== */}
-        <Card>
-          <div className="card-heading">
-            <div>
-              <h2>Recent Documents</h2>
-
-              <p>
-                Your recently added study material.
-              </p>
-            </div>
-
-            <Link to="/documents">
-              View all
+            <Link to="/documents" className="dashboard-secondary-btn">
+              <FileText size={17} />
+              My Documents
             </Link>
           </div>
 
-          <div className="document-list">
-            {recentDocuments.map((doc) => (
-              <div
-                className="document-row"
-                key={doc.name}
-              >
-                <div className="document-icon">
-                  <FileText size={20} />
-                </div>
-
-                <div className="document-info">
-                  <strong>
-                    {doc.name}
-                  </strong>
-
-                  <span>
-                    {doc.pages} pages
-                  </span>
-                </div>
-
-                <span className="status-badge">
-                  {doc.status}
-                </span>
-              </div>
-            ))}
+          <div className="dashboard-trust-line">
+            <ShieldCheck size={15} />
+            Powered by your AI study workspace
           </div>
-        </Card>
+        </div>
 
-        {/* =========================
-            Study Progress
-        ========================== */}
-        <Card>
-          <div className="card-heading">
-            <div>
-              <h2>Study Progress</h2>
+        <div className="dashboard-hero-visual">
+          <div className="dashboard-visual-ring ring-one" />
+          <div className="dashboard-visual-ring ring-two" />
 
-              <p>
-                This week's learning activity.
-              </p>
+          <div className="dashboard-visual-card">
+            <div className="dashboard-visual-icon">
+              <GraduationCap size={46} />
             </div>
+            <Sparkles className="dashboard-visual-sparkle" size={23} />
+            <span>STUDY SMARTER</span>
+            <strong>AI Learning</strong>
+            <small>Your knowledge companion</small>
           </div>
 
-          <div className="progress-circle">
-            <div>
-              <strong>
-                72%
-              </strong>
-
-              <span>
-                Completed
-              </span>
-            </div>
+          <div className="dashboard-floating-icon floating-one">
+            <BookOpen size={21} />
           </div>
 
-          <div className="progress-info">
-            <span>
-              Weekly study goal
-            </span>
+          <div className="dashboard-floating-icon floating-two">
+            <Brain size={21} />
+          </div>
+        </div>
+      </section>
 
+      {/* System Status */}
+      <section className="dashboard-status-row">
+        <div className="dashboard-status-card">
+          <div className="dashboard-status-icon">
+            <Activity size={19} />
+          </div>
+
+          <div className="dashboard-status-info">
+            <span>AI BACKEND</span>
             <strong>
-              18 / 25 hours
+              {backendStatus === "online"
+                ? "Connected"
+                : backendStatus === "offline"
+                ? "Disconnected"
+                : "Checking connection"}
             </strong>
           </div>
 
-          <div className="progress-bar">
-            <span></span>
-          </div>
-        </Card>
+          <span className={`dashboard-status-indicator ${backendStatus}`}>
+            <span />
+            {backendStatus === "online"
+              ? "Online"
+              : backendStatus === "offline"
+              ? "Offline"
+              : "Checking"}
+          </span>
+        </div>
 
+        <div className="dashboard-status-card">
+          <div className="dashboard-status-icon blue">
+            <Zap size={19} />
+          </div>
+
+          <div className="dashboard-status-info">
+            <span>LEARNING TOOLS</span>
+            <strong>AI Workspace</strong>
+          </div>
+
+          <span className="dashboard-tool-count">04 TOOLS</span>
+        </div>
+
+        <div className="dashboard-status-card">
+          <div className="dashboard-status-icon green">
+            <ShieldCheck size={19} />
+          </div>
+
+          <div className="dashboard-status-info">
+            <span>WORKSPACE</span>
+            <strong>Ready to learn</strong>
+          </div>
+
+          <CheckCircle2 className="dashboard-ready-icon" size={20} />
+        </div>
       </section>
+
+      {/* Quick Tools */}
+      <section className="dashboard-section">
+        <div className="dashboard-section-heading">
+          <div>
+            <span className="dashboard-section-label">
+              YOUR AI TOOLKIT
+            </span>
+            <h2>Explore your workspace</h2>
+            <p>Everything you need for a smarter study session.</p>
+          </div>
+
+          <div className="dashboard-section-decoration">
+            <Sparkles size={19} />
+          </div>
+        </div>
+
+        <div className="dashboard-tools-grid">
+          {tools.map((tool) => {
+            const Icon = tool.icon;
+
+            return (
+              <Link
+                to={tool.path}
+                className="dashboard-tool-card"
+                key={tool.title}
+              >
+                <div className={`dashboard-tool-icon ${tool.color}`}>
+                  <Icon size={23} />
+                </div>
+
+                <span className="dashboard-tool-tag">
+                  {tool.tag}
+                </span>
+
+                <h3>{tool.title}</h3>
+                <p>{tool.description}</p>
+
+                <div className="dashboard-tool-link">
+                  Open tool
+                  <ArrowUpRight size={17} />
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Learning Banner */}
+      <section className="dashboard-bottom-banner">
+        <div className="dashboard-banner-icon">
+          <CalendarDays size={26} />
+        </div>
+
+        <div className="dashboard-banner-content">
+          <span>YOUR NEXT STUDY SESSION</span>
+          <h3>Make today a productive learning day.</h3>
+          <p>
+            Choose a document, ask AI a question or create
+            revision notes to get started.
+          </p>
+        </div>
+
+        <Link to="/summarizer" className="dashboard-banner-btn">
+          Create Study Notes
+          <ArrowUpRight size={17} />
+        </Link>
+      </section>
+
+      <div className="dashboard-footer">
+        <Clock3 size={14} />
+        <span>StudyMate AI Pro · Your intelligent learning companion</span>
+      </div>
+
     </div>
   );
 }

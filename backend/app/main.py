@@ -1,6 +1,8 @@
 """The main FastAPI application for StudyMate AI."""
+from app.services.flashcard_service import generate_flashcards
+from app.services.summary_service import summarize_pdf
 from app.services.chat_service import ask_question_from_pdf
-
+from app.services.quiz_service import generate_quiz
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
@@ -123,3 +125,108 @@ async def chat_with_pdf(request: PDFChatRequest):
             status_code=500,
             detail=f"AI question answering failed: {error}",
         ) from error  
+    
+class PDFSummaryRequest(BaseModel):
+    filename: str
+
+
+@app.post("/api/summarize-pdf")
+async def summarize_uploaded_pdf(request: PDFSummaryRequest):
+    """Generate a summary of an uploaded PDF."""
+
+    safe_filename = Path(request.filename).name
+    file_path = UPLOAD_DIR / safe_filename
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="PDF not found. Please upload the PDF first.",
+        )
+
+    try:
+        pdf_text = extract_text_from_pdf(str(file_path))
+        summary = summarize_pdf(pdf_text)
+
+        return {
+            "message": "PDF summarized successfully.",
+            "filename": safe_filename,
+            "summary": summary,
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF summarization failed: {error}",
+        ) from error
+class QuizRequest(BaseModel):
+    topic: str
+    difficulty: str
+    count: int
+    quiz_mode: str
+
+
+@app.post("/api/generate-quiz")
+async def generate_ai_quiz(request: QuizRequest):
+    """Generate an AI-powered study quiz."""
+
+    try:
+        questions = generate_quiz(
+            topic=request.topic,
+            difficulty=request.difficulty,
+            count=request.count,
+            quiz_mode=request.quiz_mode,
+        )
+
+        return {
+            "message": "Quiz generated successfully.",
+            "topic": request.topic,
+            "difficulty": request.difficulty,
+            "count": len(questions),
+            "quiz_mode": request.quiz_mode,
+            "questions": questions,
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Quiz generation failed: {error}",
+        ) from error
+class FlashcardRequest(BaseModel):
+    topic: str
+    count: int
+
+
+@app.post("/api/generate-flashcards")
+async def generate_ai_flashcards(request: FlashcardRequest):
+    """Generate AI-powered study flashcards."""
+
+    try:
+        flashcards = generate_flashcards(
+            topic=request.topic,
+            count=request.count,
+        )
+
+        return {
+            "message": "Flashcards generated successfully.",
+            "topic": request.topic,
+            "count": len(flashcards),
+            "flashcards": flashcards,
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Flashcard generation failed: {error}",
+        ) from error
