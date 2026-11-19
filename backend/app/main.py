@@ -1,4 +1,7 @@
 """The main FastAPI application for StudyMate AI."""
+from app.auth_routes import router as auth_router
+from app.models import Base
+from database import engine
 from app.services.flashcard_service import generate_flashcards
 from app.services.summary_service import summarize_pdf
 from app.services.chat_service import ask_question_from_pdf
@@ -11,6 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.services.pdf_extractor import extract_text_from_pdf
 
 app = FastAPI(title="StudyMate AI API")
+
+Base.metadata.create_all(bind=engine)
+app.include_router(auth_router)
 
 app.add_middleware(
     CORSMiddleware,

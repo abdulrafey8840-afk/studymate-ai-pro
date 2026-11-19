@@ -52,3 +52,9 @@ Thumbs.db
 !.vscode/settings.json
 # Local backup files
 *.backup.*
+# Local database files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3

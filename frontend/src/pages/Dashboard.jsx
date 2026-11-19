@@ -58,15 +58,33 @@ const tools = [
 function Dashboard() {
   const [backendStatus, setBackendStatus] = useState("checking");
 
+  const [documentCount, setDocumentCount] = useState(() => {
+    try {
+      const documents = JSON.parse(
+        localStorage.getItem("studymate_documents") || "[]"
+      );
+
+      return documents.length;
+    } catch {
+      return 0;
+    }
+  });
+
+  // CHECK BACKEND
   useEffect(() => {
     let active = true;
 
     async function checkServer() {
       try {
         await checkBackendHealth();
-        if (active) setBackendStatus("online");
+
+        if (active) {
+          setBackendStatus("online");
+        }
       } catch {
-        if (active) setBackendStatus("offline");
+        if (active) {
+          setBackendStatus("offline");
+        }
       }
     }
 
@@ -74,6 +92,31 @@ function Dashboard() {
 
     return () => {
       active = false;
+    };
+  }, []);
+
+  // UPDATE DOCUMENT COUNT
+  useEffect(() => {
+    const updateDocumentCount = () => {
+      try {
+        const documents = JSON.parse(
+          localStorage.getItem("studymate_documents") || "[]"
+        );
+
+        setDocumentCount(documents.length);
+      } catch {
+        setDocumentCount(0);
+      }
+    };
+
+    updateDocumentCount();
+
+    window.addEventListener("focus", updateDocumentCount);
+    window.addEventListener("storage", updateDocumentCount);
+
+    return () => {
+      window.removeEventListener("focus", updateDocumentCount);
+      window.removeEventListener("storage", updateDocumentCount);
     };
   }, []);
 
@@ -127,7 +170,9 @@ function Dashboard() {
             <div className="dashboard-visual-icon">
               <GraduationCap size={46} />
             </div>
+
             <Sparkles className="dashboard-visual-sparkle" size={23} />
+
             <span>STUDY SMARTER</span>
             <strong>AI Learning</strong>
             <small>Your knowledge companion</small>
@@ -145,6 +190,7 @@ function Dashboard() {
 
       {/* System Status */}
       <section className="dashboard-status-row">
+
         <div className="dashboard-status-card">
           <div className="dashboard-status-icon">
             <Activity size={19} />
@@ -152,6 +198,7 @@ function Dashboard() {
 
           <div className="dashboard-status-info">
             <span>AI BACKEND</span>
+
             <strong>
               {backendStatus === "online"
                 ? "Connected"
@@ -163,6 +210,7 @@ function Dashboard() {
 
           <span className={`dashboard-status-indicator ${backendStatus}`}>
             <span />
+
             {backendStatus === "online"
               ? "Online"
               : backendStatus === "offline"
@@ -177,11 +225,13 @@ function Dashboard() {
           </div>
 
           <div className="dashboard-status-info">
-            <span>LEARNING TOOLS</span>
-            <strong>AI Workspace</strong>
+            <span>MY DOCUMENTS</span>
+            <strong>{documentCount} Documents Uploaded</strong>
           </div>
 
-          <span className="dashboard-tool-count">04 TOOLS</span>
+          <Link to="/documents" className="dashboard-tool-count">
+            VIEW
+          </Link>
         </div>
 
         <div className="dashboard-status-card">
@@ -196,6 +246,7 @@ function Dashboard() {
 
           <CheckCircle2 className="dashboard-ready-icon" size={20} />
         </div>
+
       </section>
 
       {/* Quick Tools */}
@@ -205,7 +256,9 @@ function Dashboard() {
             <span className="dashboard-section-label">
               YOUR AI TOOLKIT
             </span>
+
             <h2>Explore your workspace</h2>
+
             <p>Everything you need for a smarter study session.</p>
           </div>
 
@@ -233,6 +286,7 @@ function Dashboard() {
                 </span>
 
                 <h3>{tool.title}</h3>
+
                 <p>{tool.description}</p>
 
                 <div className="dashboard-tool-link">
@@ -253,7 +307,9 @@ function Dashboard() {
 
         <div className="dashboard-banner-content">
           <span>YOUR NEXT STUDY SESSION</span>
+
           <h3>Make today a productive learning day.</h3>
+
           <p>
             Choose a document, ask AI a question or create
             revision notes to get started.
@@ -268,7 +324,10 @@ function Dashboard() {
 
       <div className="dashboard-footer">
         <Clock3 size={14} />
-        <span>StudyMate AI Pro · Your intelligent learning companion</span>
+
+        <span>
+          StudyMate AI Pro · Your intelligent learning companion
+        </span>
       </div>
 
     </div>

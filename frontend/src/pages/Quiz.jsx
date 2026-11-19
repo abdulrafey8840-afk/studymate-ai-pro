@@ -19,6 +19,10 @@ import {
 import { generateQuiz } from "../services/api";
 import "./Quiz.css";
 
+function normalizeAnswer(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function Quiz() {
   const [difficulty, setDifficulty] = useState("Medium");
   const [questionCount, setQuestionCount] = useState("10");
@@ -31,6 +35,21 @@ function Quiz() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const isTrueFalse = quizMode === "True or False";
+
+  const isAnswerCorrect = (selected, correct) => {
+    return normalizeAnswer(selected) === normalizeAnswer(correct);
+  };
+
+  const calculateScore = () => {
+    if (!quizData?.questions) return 0;
+
+    return quizData.questions.filter((question, index) =>
+      isAnswerCorrect(answers[index], question.answer)
+    ).length;
+  };
+
+  // GENERATE QUIZ
   const handleGenerate = async () => {
     if (!topic.trim()) return;
 
@@ -48,14 +67,77 @@ function Quiz() {
         quizMode
       );
 
-      setQuizData(data);
+      if (
+        !data ||
+        !Array.isArray(data.questions) ||
+        data.questions.length === 0
+      ) {
+        throw new Error("Invalid quiz response from server.");
+      }
+
+      // Validate every generated question.
+      const validatedQuestions = data.questions.map((question) => {
+        if (
+          !question.question ||
+          !Array.isArray(question.options) ||
+          !question.answer
+        ) {
+          throw new Error("AI generated an incomplete question.");
+        }
+
+        if (isTrueFalse) {
+          const normalizedAnswer = normalizeAnswer(question.answer);
+
+          if (!["true", "false"].includes(normalizedAnswer)) {
+            throw new Error(
+              "Invalid True/False answer received from AI."
+            );
+          }
+
+          return {
+            ...question,
+            options: ["True", "False"],
+            answer:
+              normalizedAnswer === "true" ? "True" : "False",
+          };
+        }
+
+        const matchedAnswer = question.options.find(
+          (option) =>
+            normalizeAnswer(option) ===
+            normalizeAnswer(question.answer)
+        );
+
+        if (!matchedAnswer) {
+          throw new Error(
+            "AI generated an answer that does not match its options."
+          );
+        }
+
+        return {
+          ...question,
+          answer: matchedAnswer,
+        };
+      });
+
+      setQuizData({
+        ...data,
+        questions: validatedQuestions,
+        topic: data.topic || topic.trim(),
+        difficulty: data.difficulty || difficulty,
+        quiz_mode: data.quiz_mode || quizMode,
+        count: validatedQuestions.length,
+      });
+
     } catch (err) {
+      console.error("Quiz generation error:", err);
       setError(err.message || "Unable to generate quiz.");
     } finally {
       setLoading(false);
     }
   };
 
+  // SELECT ANSWER
   const handleAnswer = (questionIndex, option) => {
     if (submitted) return;
 
@@ -65,18 +147,62 @@ function Quiz() {
     }));
   };
 
-  const calculateScore = () => {
-    return quizData.questions.filter(
-      (question, index) =>
-        answers[index] === question.answer
-    ).length;
-  };
-
+  // SAVE QUIZ RESULT
   const handleSubmit = () => {
     if (!quizData) return;
-    setSubmitted(true);
+
+    const totalQuestions = quizData.questions.length;
+
+    if (
+      totalQuestions === 0 ||
+      Object.keys(answers).length !== totalQuestions
+    ) {
+      return;
+    }
+
+    const correctAnswers = calculateScore();
+
+    const percentage = Math.round(
+      (correctAnswers / totalQuestions) * 100
+    );
+
+    const result = {
+      id: crypto.randomUUID(),
+      topic: quizData.topic || topic,
+      difficulty: quizData.difficulty || difficulty,
+      totalQuestions,
+      correctAnswers,
+      percentage,
+      completedAt: new Date().toISOString(),
+    };
+
+    try {
+      const previousHistory = JSON.parse(
+        localStorage.getItem("studymate_quiz_history") || "[]"
+      );
+
+      const safeHistory = Array.isArray(previousHistory)
+        ? previousHistory
+        : [];
+
+      localStorage.setItem(
+        "studymate_quiz_history",
+        JSON.stringify([result, ...safeHistory].slice(0, 100))
+      );
+
+      window.dispatchEvent(
+        new Event("studymateQuizUpdated")
+      );
+
+      setSubmitted(true);
+
+    } catch (err) {
+      console.error("Unable to save quiz result:", err);
+      setError("Quiz result could not be saved. Please try again.");
+    }
   };
 
+  // RETRY
   const handleRetry = () => {
     setQuizData(null);
     setAnswers({});
@@ -86,6 +212,8 @@ function Quiz() {
 
   return (
     <div className="quiz-page">
+
+      {/* HERO */}
       <section className="quiz-hero">
         <div className="quiz-hero-content">
           <span className="quiz-eyebrow">
@@ -106,8 +234,15 @@ function Quiz() {
           </p>
 
           <div className="quiz-hero-points">
-            <span><CheckCircle2 size={15} /> AI-powered questions</span>
-            <span><CheckCircle2 size={15} /> Instant feedback</span>
+            <span>
+              <CheckCircle2 size={15} />
+              AI-powered questions
+            </span>
+
+            <span>
+              <CheckCircle2 size={15} />
+              Instant feedback
+            </span>
           </div>
         </div>
 
@@ -132,13 +267,16 @@ function Quiz() {
         </div>
       </section>
 
+      {/* QUIZ BUILDER */}
       <section className="quiz-section">
         <div className="quiz-section-heading">
           <div>
             <span className="quiz-section-label">
               CREATE YOUR SESSION
             </span>
+
             <h2>Build your quiz</h2>
+
             <p>
               Customize your practice session according to your needs.
             </p>
@@ -151,6 +289,7 @@ function Quiz() {
 
         <div className="quiz-builder">
           <div className="quiz-builder-main">
+
             <div className="quiz-field">
               <label>
                 <FileText size={16} />
@@ -186,6 +325,7 @@ function Quiz() {
                     onClick={() => setDifficulty(level)}
                   >
                     {level}
+
                     {difficulty === level && (
                       <CheckCircle2 size={15} />
                     )}
@@ -211,6 +351,7 @@ function Quiz() {
                     onClick={() => setQuestionCount(count)}
                   >
                     {count}
+
                     {questionCount === count && (
                       <CheckCircle2 size={15} />
                     )}
@@ -233,6 +374,7 @@ function Quiz() {
                   <option>Multiple Choice</option>
                   <option>True or False</option>
                 </select>
+
                 <ChevronDown size={17} />
               </div>
             </div>
@@ -263,6 +405,7 @@ function Quiz() {
                 {error}
               </div>
             )}
+
           </div>
 
           <aside className="quiz-builder-sidebar">
@@ -309,14 +452,18 @@ function Quiz() {
         </div>
       </section>
 
+      {/* QUIZ RESULTS */}
       {quizData && (
         <section className="quiz-results-section">
+
           <div className="quiz-results-heading">
             <div>
               <span className="quiz-section-label">
                 YOUR AI GENERATED TEST
               </span>
+
               <h2>{quizData.topic} Quiz</h2>
+
               <p>
                 {quizData.count} questions · {quizData.difficulty} ·{" "}
                 {quizData.quiz_mode}
@@ -324,7 +471,8 @@ function Quiz() {
             </div>
 
             <span className="quiz-live-badge">
-              <Sparkles size={13} /> AI Generated
+              <Sparkles size={13} />
+              AI Generated
             </span>
           </div>
 
@@ -336,9 +484,11 @@ function Quiz() {
 
               <div>
                 <span>YOUR FINAL SCORE</span>
+
                 <h2>
                   {calculateScore()} / {quizData.questions.length}
                 </h2>
+
                 <p>
                   {Math.round(
                     (calculateScore() / quizData.questions.length) * 100
@@ -351,8 +501,10 @@ function Quiz() {
 
           <div className="quiz-questions-list">
             {quizData.questions.map((question, index) => {
-              const correct =
-                answers[index] === question.answer;
+              const correct = isAnswerCorrect(
+                answers[index],
+                question.answer
+              );
 
               return (
                 <article className="quiz-question-card" key={index}>
@@ -368,9 +520,15 @@ function Quiz() {
                         }
                       >
                         {correct ? (
-                          <><CheckCircle2 size={14} /> Correct</>
+                          <>
+                            <CheckCircle2 size={14} />
+                            Correct
+                          </>
                         ) : (
-                          <><XCircle size={14} /> Incorrect</>
+                          <>
+                            <XCircle size={14} />
+                            Incorrect
+                          </>
                         )}
                       </span>
                     )}
@@ -380,19 +538,21 @@ function Quiz() {
 
                   <div className="quiz-answers-grid">
                     {question.options.map((option, optionIndex) => {
-                      const selected = answers[index] === option;
+                      const selected = isAnswerCorrect(
+                        answers[index],
+                        option
+                      );
+
                       const isCorrect =
-                        submitted && option === question.answer;
+                        submitted &&
+                        isAnswerCorrect(option, question.answer);
 
                       let className = "quiz-answer-option";
 
                       if (selected) className += " selected";
                       if (isCorrect) className += " answer-correct";
-                      if (
-                        submitted &&
-                        selected &&
-                        !correct
-                      ) {
+
+                      if (submitted && selected && !correct) {
                         className += " answer-incorrect";
                       }
 
@@ -401,14 +561,13 @@ function Quiz() {
                           type="button"
                           key={optionIndex}
                           className={className}
-                          onClick={() =>
-                            handleAnswer(index, option)
-                          }
+                          onClick={() => handleAnswer(index, option)}
                           disabled={submitted}
                         >
                           <span className="quiz-answer-letter">
                             {String.fromCharCode(65 + optionIndex)}
                           </span>
+
                           {option}
                         </button>
                       );
@@ -421,6 +580,7 @@ function Quiz() {
                         <Sparkles size={15} />
                         Explanation
                       </strong>
+
                       <p>{question.explanation}</p>
 
                       {!correct && (
@@ -458,6 +618,7 @@ function Quiz() {
               Create Another Quiz
             </button>
           )}
+
         </section>
       )}
 
@@ -465,6 +626,7 @@ function Quiz() {
         <Sparkles size={14} />
         Small steps every day lead to big achievements.
       </div>
+
     </div>
   );
 }

@@ -1,4 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import "./Documents.css";
+
 import {
   FileText,
   Upload,
@@ -17,21 +19,35 @@ function Documents() {
   const fileInputRef = useRef(null);
 
   const [search, setSearch] = useState("");
-  const [documents, setDocuments] = useState([]);
+
+  const [documents, setDocuments] = useState(() => {
+    try {
+      return JSON.parse(
+        localStorage.getItem("studymate_documents") || "[]"
+      );
+    } catch {
+      return [];
+    }
+  });
+
   const [selectedFile, setSelectedFile] = useState(null);
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // -----------------------------
+  // SAVE DOCUMENTS
+  useEffect(() => {
+    localStorage.setItem(
+      "studymate_documents",
+      JSON.stringify(documents)
+    );
+  }, [documents]);
+
   // SELECT PDF
-  // -----------------------------
   const handleFileSelect = (file) => {
     setMessage("");
 
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     if (file.type !== "application/pdf") {
       setMessage("Only PDF files are allowed.");
@@ -49,21 +65,15 @@ function Documents() {
     setMessage(`${file.name} selected successfully.`);
   };
 
-  // -----------------------------
   // FILE INPUT
-  // -----------------------------
   const handleInputChange = (event) => {
     const file = event.target.files?.[0];
 
     handleFileSelect(file);
-
-    // Allows selecting the same file again
     event.target.value = "";
   };
 
-  // -----------------------------
-  // DRAG & DROP
-  // -----------------------------
+  // DRAG AND DROP
   const handleDragOver = (event) => {
     event.preventDefault();
     setDragActive(true);
@@ -79,13 +89,10 @@ function Documents() {
     setDragActive(false);
 
     const file = event.dataTransfer.files?.[0];
-
     handleFileSelect(file);
   };
 
-  // -----------------------------
-  // UPLOAD PDF TO FASTAPI
-  // -----------------------------
+  // UPLOAD PDF
   const handleAddDocument = async () => {
     if (!selectedFile) {
       setMessage("Please select a PDF first.");
@@ -96,7 +103,6 @@ function Documents() {
       setUploading(true);
       setMessage("Uploading PDF to StudyMate backend...");
 
-      // Send the actual PDF to FastAPI
       const response = await uploadPDF(selectedFile);
 
       const newDocument = {
@@ -105,7 +111,6 @@ function Documents() {
         size: selectedFile.size,
         pages: "Processing...",
         status: "Uploaded",
-        file: selectedFile,
         backendPath: response.path,
       };
 
@@ -130,36 +135,23 @@ function Documents() {
     }
   };
 
-  // -----------------------------
   // DELETE DOCUMENT
-  // -----------------------------
   const handleDelete = (id) => {
     setDocuments((previous) =>
       previous.filter((document) => document.id !== id)
     );
+
+    setMessage("Document removed from your list.");
   };
 
-  // -----------------------------
   // OPEN PDF
-  // -----------------------------
   const handleOpenDocument = (document) => {
-    if (!document.file) {
-      setMessage("PDF preview is not available.");
-      return;
-    }
-
-    const url = URL.createObjectURL(document.file);
-
-    window.open(url, "_blank");
-
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 10000);
+    setMessage(
+      "Please upload this PDF again to preview it in this browser session."
+    );
   };
 
-  // -----------------------------
   // FORMAT FILE SIZE
-  // -----------------------------
   const formatFileSize = (bytes) => {
     if (bytes < 1024 * 1024) {
       return `${(bytes / 1024).toFixed(1)} KB`;
@@ -168,17 +160,13 @@ function Documents() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // -----------------------------
   // SEARCH
-  // -----------------------------
   const filteredDocuments = documents.filter((document) =>
-    document.name
-      .toLowerCase()
-      .includes(search.toLowerCase())
+    document.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
-    <div className="page">
+    <div className="page documents-page">
 
       {/* PAGE HEADER */}
       <section className="welcome-section">
@@ -213,19 +201,15 @@ function Documents() {
         />
       </section>
 
-      {/* UPLOAD + KNOWLEDGE BASE */}
+      {/* UPLOAD AND KNOWLEDGE BASE */}
       <section className="content-grid">
 
-        {/* UPLOAD CARD */}
         <div className="content-card">
 
           <div className="card-heading">
             <div>
               <h2>Upload study material</h2>
-
-              <p>
-                Add PDF notes to your StudyMate workspace.
-              </p>
+              <p>Add PDF notes to your StudyMate workspace.</p>
             </div>
 
             <Upload size={22} />
@@ -238,9 +222,11 @@ function Documents() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() =>
-              fileInputRef.current?.click()
-            }
+            onClick={() => {
+              if (!uploading) {
+                fileInputRef.current?.click();
+              }
+            }}
             style={{
               cursor: uploading ? "not-allowed" : "pointer",
               border: dragActive
@@ -249,7 +235,6 @@ function Documents() {
               opacity: uploading ? 0.6 : 1,
             }}
           >
-
             <div className="upload-icon">
               <Upload size={28} />
             </div>
@@ -263,22 +248,15 @@ function Documents() {
             <small>
               PDF files • Maximum 20 MB
             </small>
-
           </div>
 
-          {/* SELECTED FILE */}
           {selectedFile && (
             <div className="selected-file">
-
               <FileText size={18} />
 
-              <span>
-                {selectedFile.name}
-              </span>
+              <span>{selectedFile.name}</span>
 
-              <span>
-                {formatFileSize(selectedFile.size)}
-              </span>
+              <span>{formatFileSize(selectedFile.size)}</span>
 
               <button
                 className="danger-icon"
@@ -288,16 +266,14 @@ function Documents() {
               >
                 <X size={16} />
               </button>
-
             </div>
           )}
 
-          {/* MESSAGE */}
           {message && (
             <p
               style={{
                 marginTop: "12px",
-                color: uploading ? "#a79cff" : "#a79cff",
+                color: "#a79cff",
                 fontSize: "12px",
               }}
             >
@@ -305,7 +281,6 @@ function Documents() {
             </p>
           )}
 
-          {/* UPLOAD BUTTON */}
           {selectedFile && (
             <button
               className="upload-button"
@@ -320,10 +295,7 @@ function Documents() {
             >
               {uploading ? (
                 <>
-                  <LoaderCircle
-                    size={16}
-                    className="spin"
-                  />
+                  <LoaderCircle size={16} className="spin" />
                   Uploading...
                 </>
               ) : (
@@ -343,10 +315,7 @@ function Documents() {
           <div className="card-heading">
             <div>
               <h2>Knowledge Base</h2>
-
-              <p>
-                Your uploaded learning materials.
-              </p>
+              <p>Your uploaded learning materials.</p>
             </div>
 
             <FileText size={22} />
@@ -363,10 +332,7 @@ function Documents() {
           <div className="progress-bar">
             <span
               style={{
-                width:
-                  documents.length > 0
-                    ? "100%"
-                    : "0%",
+                width: documents.length > 0 ? "100%" : "0%",
               }}
             />
           </div>
@@ -376,7 +342,7 @@ function Documents() {
               ? "No documents uploaded yet."
               : `${documents.length} document${
                   documents.length > 1 ? "s" : ""
-                } available in this session.`}
+                } saved in your list.`}
           </p>
 
         </div>
@@ -391,9 +357,7 @@ function Documents() {
         <div>
           <h2>All Documents</h2>
 
-          <p>
-            Manage your uploaded study materials.
-          </p>
+          <p>Manage your uploaded study materials.</p>
         </div>
       </section>
 
@@ -404,9 +368,7 @@ function Documents() {
           type="text"
           placeholder="Search documents..."
           value={search}
-          onChange={(event) =>
-            setSearch(event.target.value)
-          }
+          onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
@@ -415,17 +377,12 @@ function Documents() {
         className="content-card"
         style={{ marginTop: "14px" }}
       >
-
         {filteredDocuments.length === 0 ? (
-
           <div className="feature-placeholder">
-
             <FileText size={40} />
 
             <h2>
-              {search
-                ? "No documents found"
-                : "No documents yet"}
+              {search ? "No documents found" : "No documents yet"}
             </h2>
 
             <p>
@@ -433,35 +390,24 @@ function Documents() {
                 ? "Try a different document name."
                 : "Upload your first PDF to start building your StudyMate knowledge base."}
             </p>
-
           </div>
-
         ) : (
-
           <div className="document-list">
-
             {filteredDocuments.map((document) => (
-
               <div
                 className="document-row"
                 key={document.id}
               >
-
                 <div className="document-icon">
                   <FileText size={19} />
                 </div>
 
                 <div className="document-info">
-
-                  <strong>
-                    {document.name}
-                  </strong>
+                  <strong>{document.name}</strong>
 
                   <span>
-                    PDF •{" "}
-                    {formatFileSize(document.size)}
+                    PDF • {formatFileSize(document.size)}
                   </span>
-
                 </div>
 
                 <span className="status-badge">
@@ -469,44 +415,32 @@ function Documents() {
                   {document.status}
                 </span>
 
-                {/* OPEN */}
                 <button
                   className="icon-button"
                   title="Open PDF"
-                  onClick={() =>
-                    handleOpenDocument(document)
-                  }
+                  onClick={() => handleOpenDocument(document)}
                 >
                   <Eye size={16} />
                 </button>
 
-                {/* DELETE */}
                 <button
                   className="danger-icon"
                   title="Delete document"
-                  onClick={() =>
-                    handleDelete(document.id)
-                  }
+                  onClick={() => handleDelete(document.id)}
                 >
                   <Trash2 size={16} />
                 </button>
 
-                {/* MORE */}
                 <button
                   className="icon-button"
                   title="More options"
                 >
                   <MoreVertical size={16} />
                 </button>
-
               </div>
-
             ))}
-
           </div>
-
         )}
-
       </section>
 
     </div>
