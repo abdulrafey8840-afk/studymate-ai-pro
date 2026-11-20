@@ -35,7 +35,7 @@ function Signup() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/auth/register",
+        "https://studymate-ai-backend-ow3g.onrender.com/api/auth/register",
         {
           method: "POST",
           headers: {
