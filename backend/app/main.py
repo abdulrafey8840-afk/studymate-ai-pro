@@ -32,6 +32,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://studymate-ai-pro-xi.vercel.app",
+        "https://studymate-ai-gax9wru18-study-mate-ai-pro.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
