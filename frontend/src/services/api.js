@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  "http://localhost:8000"; // Replace with your backend URL
+const API_BASE_URL = "https://studymate-ai-backend-ow3g.onrender.com";
 
 export async function checkBackendHealth() {
   const response = await fetch(
