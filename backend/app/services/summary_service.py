@@ -1,4 +1,5 @@
-from langchain_ollama import ChatOllama
+import os
+from langchain_groq import ChatGroq
 
 
 def summarize_pdf(pdf_text: str) -> str:
@@ -7,12 +8,16 @@ def summarize_pdf(pdf_text: str) -> str:
     if not pdf_text or not pdf_text.strip():
         raise ValueError("PDF does not contain readable text.")
 
-    llm = ChatOllama(
-        model="qwen2.5:3b",
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY is not configured.")
+
+    llm = ChatGroq(
+        model="openai/gpt-oss-120b",
         temperature=0.2,
-        num_predict=1400,
-        num_ctx=4096,
-        keep_alive="30m",
+        max_tokens=4000,
+        api_key=api_key,
     )
 
     prompt = f"""
@@ -73,10 +78,9 @@ PDF CONTENT:
 """
 
     response = llm.invoke(prompt)
-
     result = response.content
 
-    if not result or not result.strip():
+    if not result or not isinstance(result, str) or not result.strip():
         raise ValueError("AI could not generate a summary.")
 
     return result.strip()
