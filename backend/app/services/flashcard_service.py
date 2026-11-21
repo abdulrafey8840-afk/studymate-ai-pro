@@ -1,11 +1,12 @@
 import json
 import re
+import os
 
-from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 
 
 def generate_flashcards(topic: str, count: int):
-    """Generate AI-powered study flashcards."""
+    """Generate AI-powered study flashcards using Groq."""
 
     if not topic or not topic.strip():
         raise ValueError("Please provide a study topic.")
@@ -13,12 +14,16 @@ def generate_flashcards(topic: str, count: int):
     if count not in [5, 10, 15, 20]:
         raise ValueError("Flashcard count must be 5, 10, 15 or 20.")
 
-    llm = ChatOllama(
-        model="qwen2.5:3b",
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY is not configured.")
+
+    llm = ChatGroq(
+        model="openai/gpt-oss-120b",
         temperature=0.2,
-        num_predict=1800,
-        num_ctx=4096,
-        keep_alive="30m",
+        max_tokens=4000,
+        api_key=api_key,
     )
 
     prompt = f"""
@@ -35,6 +40,7 @@ RULES:
 - Keep answers accurate and concise.
 - Avoid duplicate flashcards.
 - Make the content useful for exam preparation.
+- Every question must have a clear and useful answer.
 
 Return ONLY valid JSON in this structure:
 
@@ -63,6 +69,9 @@ Do not include markdown or text outside JSON.
             "AI returned an invalid flashcard format. Please try again."
         ) from error
 
+    if not isinstance(data, dict):
+        raise ValueError("AI returned an invalid flashcard structure.")
+
     flashcards = data.get("flashcards")
 
     if not isinstance(flashcards, list) or len(flashcards) != count:
@@ -79,5 +88,8 @@ Do not include markdown or text outside JSON.
             for key in ["question", "answer"]
         ):
             raise ValueError("AI generated an incomplete flashcard.")
+
+        card["question"] = card["question"].strip()
+        card["answer"] = card["answer"].strip()
 
     return flashcards
