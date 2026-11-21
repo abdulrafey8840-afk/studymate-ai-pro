@@ -1,12 +1,13 @@
 import json
 import re
 import random
+import os
 
-from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 
 
 def generate_quiz(topic: str, difficulty: str, count: int, quiz_mode: str):
-    """Generate a structured student-friendly quiz using Ollama."""
+    """Generate a structured student-friendly quiz using Groq."""
 
     if not topic or not topic.strip():
         raise ValueError("Please provide a study topic.")
@@ -20,15 +21,18 @@ def generate_quiz(topic: str, difficulty: str, count: int, quiz_mode: str):
     if quiz_mode not in ["Multiple Choice", "True or False"]:
         raise ValueError("Invalid quiz format.")
 
-    llm = ChatOllama(
-        model="qwen2.5:1.5b",
+    api_key = os.getenv("GROQ_API_KEY")
+
+    if not api_key:
+        raise ValueError("GROQ_API_KEY is not configured.")
+
+    llm = ChatGroq(
+        model="openai/gpt-oss-120b",
         temperature=0.3,
-        num_predict=1000,
-        num_ctx=2048,
-        keep_alive="30m",
+        max_tokens=4000,
+        api_key=api_key,
     )
 
-    # Create a balanced True/False answer distribution.
     true_false_answers = []
 
     if quiz_mode == "True or False":
@@ -72,15 +76,12 @@ For Multiple Choice:
 
 For True or False:
 - Provide exactly two options: True and False.
-- IMPORTANT: Create a balanced mixture of TRUE and FALSE statements.
-- Do not make all answers True.
-- Do not make all answers False.
-- Every statement must be independently factually accurate or inaccurate.
-- A False statement must contain a clear factual mistake.
-- Its explanation must state the correct fact.
-- Never mark a true statement as False or a false statement as True.
+- Create a balanced mixture of TRUE and FALSE statements.
 - Follow this exact answer distribution:
 {json.dumps(true_false_answers)}
+
+Every False statement must contain a clear factual mistake.
+Its explanation must state the correct fact.
 
 Return ONLY valid JSON in this exact structure:
 
@@ -231,7 +232,6 @@ Do not include markdown or text outside the JSON.
 
         question["answer"] = matched_answer
 
-    # Reject an unbalanced True/False quiz instead of silently accepting it.
     if quiz_mode == "True or False":
         actual_answers = [
             question["answer"] for question in questions
