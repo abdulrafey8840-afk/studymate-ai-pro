@@ -1,13 +1,13 @@
-from langchain_ollama import ChatOllama
+import os
+from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 
-# StudyMate AI local language model
-_llm = ChatOllama(
-    model="qwen2.5:3b",
+# StudyMate AI - Groq Cloud Language Model
+_llm = ChatGroq(
+    model="llama-3.3-70b-versatile",
     temperature=0,
-    num_predict=500,
-    num_ctx=2048,
-    keep_alive="30m",
+    max_tokens=500,
+    api_key=os.getenv("GROQ_API_KEY"),
 )
 
 
@@ -20,7 +20,6 @@ def ask_question_from_pdf(pdf_text: str, question: str) -> str:
     if not question.strip():
         return "Please enter a question."
 
-    # Limit context to avoid excessive memory usage
     context = pdf_text[:12000]
 
     messages = [
@@ -42,4 +41,4 @@ def ask_question_from_pdf(pdf_text: str, question: str) -> str:
 
     response = _llm.invoke(messages)
 
-    return response.content
+    return str(response.content)

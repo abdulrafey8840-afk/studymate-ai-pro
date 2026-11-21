@@ -25,3 +25,4 @@ chromadb
 
 # Environment Configuration
 python-dotenv
+langchain-groq
