@@ -13,7 +13,37 @@ import {
   LoaderCircle,
 } from "lucide-react";
 
-import { uploadPDF } from "../services/api";
+import { uploadFile } from "../services/api";
+
+const SUPPORTED_EXTENSIONS = [
+  ".pdf",
+  ".docx",
+  ".xlsx",
+  ".xls",
+  ".pptx",
+  ".txt",
+  ".md",
+  ".csv",
+];
+
+const ACCEPTED_FILES = SUPPORTED_EXTENSIONS.join(",");
+
+function getFileType(filename = "") {
+  const extension = filename.split(".").pop()?.toLowerCase();
+
+  const types = {
+    pdf: "PDF",
+    docx: "Word",
+    xlsx: "Excel",
+    xls: "Excel",
+    pptx: "PowerPoint",
+    txt: "Text",
+    md: "Markdown",
+    csv: "CSV",
+  };
+
+  return types[extension] || "Document";
+}
 
 function Documents() {
   const fileInputRef = useRef(null);
@@ -35,7 +65,6 @@ function Documents() {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // SAVE DOCUMENTS
   useEffect(() => {
     localStorage.setItem(
       "studymate_documents",
@@ -43,21 +72,30 @@ function Documents() {
     );
   }, [documents]);
 
-  // SELECT PDF
+  // SELECT SUPPORTED FILE
   const handleFileSelect = (file) => {
     setMessage("");
 
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setMessage("Only PDF files are allowed.");
+    const extension = "." + file.name.split(".").pop().toLowerCase();
+
+    if (!SUPPORTED_EXTENSIONS.includes(extension)) {
+      setMessage(
+        "Unsupported file. Please select PDF, DOCX, XLSX, XLS, PPTX, TXT, MD or CSV."
+      );
       return;
     }
 
     const maxSize = 20 * 1024 * 1024;
 
     if (file.size > maxSize) {
-      setMessage("PDF size must be less than 20 MB.");
+      setMessage("File size must be less than 20 MB.");
+      return;
+    }
+
+    if (file.size === 0) {
+      setMessage("This file is empty.");
       return;
     }
 
@@ -65,10 +103,8 @@ function Documents() {
     setMessage(`${file.name} selected successfully.`);
   };
 
-  // FILE INPUT
   const handleInputChange = (event) => {
     const file = event.target.files?.[0];
-
     handleFileSelect(file);
     event.target.value = "";
   };
@@ -92,26 +128,27 @@ function Documents() {
     handleFileSelect(file);
   };
 
-  // UPLOAD PDF
+  // UPLOAD DOCUMENT
   const handleAddDocument = async () => {
     if (!selectedFile) {
-      setMessage("Please select a PDF first.");
+      setMessage("Please select a document first.");
       return;
     }
 
     try {
       setUploading(true);
-      setMessage("Uploading PDF to StudyMate backend...");
+      setMessage("Uploading document to StudyMate backend...");
 
-      const response = await uploadPDF(selectedFile);
+      const response = await uploadFile(selectedFile);
 
       const newDocument = {
         id: crypto.randomUUID(),
-        name: response.filename || selectedFile.name,
-        size: selectedFile.size,
+        name: response.original_filename || selectedFile.name,
+        filename: response.filename,
+        size: response.size || selectedFile.size,
+        type: response.file_type || getFileType(selectedFile.name),
         pages: "Processing...",
         status: "Uploaded",
-        backendPath: response.path,
       };
 
       setDocuments((previous) => [
@@ -122,20 +159,20 @@ function Documents() {
       setSelectedFile(null);
 
       setMessage(
-        `${newDocument.name} uploaded successfully to the backend.`
+        `${newDocument.name} uploaded successfully!`
       );
     } catch (error) {
-      console.error("PDF upload error:", error);
+      console.error("Document upload error:", error);
 
       setMessage(
-        error.message || "PDF upload failed. Please try again."
+        error.message || "Document upload failed. Please try again."
       );
     } finally {
       setUploading(false);
     }
   };
 
-  // DELETE DOCUMENT
+  // DELETE DOCUMENT FROM LIST
   const handleDelete = (id) => {
     setDocuments((previous) =>
       previous.filter((document) => document.id !== id)
@@ -144,10 +181,10 @@ function Documents() {
     setMessage("Document removed from your list.");
   };
 
-  // OPEN PDF
-  const handleOpenDocument = (document) => {
+  // PREVIEW DOCUMENT
+  const handleOpenDocument = () => {
     setMessage(
-      "Please upload this PDF again to preview it in this browser session."
+      "Document preview is not available yet. You can use the uploaded document with supported AI features."
     );
   };
 
@@ -167,8 +204,6 @@ function Documents() {
 
   return (
     <div className="page documents-page">
-
-      {/* PAGE HEADER */}
       <section className="welcome-section">
         <div>
           <span className="eyebrow">
@@ -189,27 +224,26 @@ function Documents() {
           disabled={uploading}
         >
           <Upload size={18} />
-          Upload PDF
+          Upload File
         </button>
 
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={ACCEPTED_FILES}
           hidden
           onChange={handleInputChange}
         />
       </section>
 
-      {/* UPLOAD AND KNOWLEDGE BASE */}
       <section className="content-grid">
-
         <div className="content-card">
-
           <div className="card-heading">
             <div>
               <h2>Upload study material</h2>
-              <p>Add PDF notes to your StudyMate workspace.</p>
+              <p>
+                Add documents to your StudyMate workspace.
+              </p>
             </div>
 
             <Upload size={22} />
@@ -239,14 +273,16 @@ function Documents() {
               <Upload size={28} />
             </div>
 
-            <h2>Drop your PDF here</h2>
+            <h2>Drop your document here</h2>
 
             <p>
               or click to browse files from your computer
             </p>
 
             <small>
-              PDF files • Maximum 20 MB
+              PDF, DOCX, XLSX, XLS, PPTX, TXT, MD, CSV
+              <br />
+              Maximum 20 MB per file
             </small>
           </div>
 
@@ -260,7 +296,10 @@ function Documents() {
 
               <button
                 className="danger-icon"
-                onClick={() => setSelectedFile(null)}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setSelectedFile(null);
+                }}
                 title="Remove selected file"
                 disabled={uploading}
               >
@@ -306,12 +345,9 @@ function Documents() {
               )}
             </button>
           )}
-
         </div>
 
-        {/* KNOWLEDGE BASE */}
         <div className="content-card">
-
           <div className="card-heading">
             <div>
               <h2>Knowledge Base</h2>
@@ -344,19 +380,15 @@ function Documents() {
                   documents.length > 1 ? "s" : ""
                 } saved in your list.`}
           </p>
-
         </div>
-
       </section>
 
-      {/* SEARCH */}
       <section
         className="section-heading"
         style={{ marginTop: "28px" }}
       >
         <div>
           <h2>All Documents</h2>
-
           <p>Manage your uploaded study materials.</p>
         </div>
       </section>
@@ -372,7 +404,6 @@ function Documents() {
         />
       </div>
 
-      {/* DOCUMENT LIST */}
       <section
         className="content-card"
         style={{ marginTop: "14px" }}
@@ -388,7 +419,7 @@ function Documents() {
             <p>
               {search
                 ? "Try a different document name."
-                : "Upload your first PDF to start building your StudyMate knowledge base."}
+                : "Upload your first study document to start building your StudyMate knowledge base."}
             </p>
           </div>
         ) : (
@@ -406,7 +437,9 @@ function Documents() {
                   <strong>{document.name}</strong>
 
                   <span>
-                    PDF • {formatFileSize(document.size)}
+                    {document.type || getFileType(document.name)}
+                    {" • "}
+                    {formatFileSize(document.size)}
                   </span>
                 </div>
 
@@ -417,7 +450,7 @@ function Documents() {
 
                 <button
                   className="icon-button"
-                  title="Open PDF"
+                  title="Open document"
                   onClick={() => handleOpenDocument(document)}
                 >
                   <Eye size={16} />
@@ -442,7 +475,6 @@ function Documents() {
           </div>
         )}
       </section>
-
     </div>
   );
 }

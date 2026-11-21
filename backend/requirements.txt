@@ -14,15 +14,28 @@ email-validator
 # PDF Processing
 pypdf
 
+# Word Processing
+python-docx
+
+# Excel Processing
+openpyxl
+xlrd
+
+# PowerPoint Processing
+python-pptx
+
+# Image Processing
+Pillow
+
 # LangChain
 langchain
 langchain-ollama
 langchain-chroma
 langchain-text-splitters
+langchain-groq
 
 # Vector Database
 chromadb
 
 # Environment Configuration
 python-dotenv
-langchain-groq

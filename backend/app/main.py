@@ -1,10 +1,15 @@
 """The main FastAPI application for StudyMate AI."""
 
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from app.auth_routes import router as auth_router
 from app.models import Base
@@ -14,7 +19,10 @@ from app.services.flashcard_service import generate_flashcards
 from app.services.summary_service import summarize_pdf
 from app.services.chat_service import ask_question_from_pdf
 from app.services.quiz_service import generate_quiz
-from app.services.pdf_extractor import extract_text_from_pdf
+from app.services.file_extractor import (
+    extract_text_from_file,
+    SUPPORTED_EXTENSIONS,
+)
 
 
 app = FastAPI(title="StudyMate AI API")
@@ -22,7 +30,7 @@ app = FastAPI(title="StudyMate AI API")
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
-# Register authentication routes
+# Authentication routes
 app.include_router(auth_router)
 
 # CORS Configuration
@@ -44,26 +52,23 @@ app.add_middleware(
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_FILE_SIZE = 20 * 1024 * 1024
+
 
 @app.get("/")
-def read_root() -> dict[str, str]:
+def read_root() -> dict:
     return {"message": "Welcome to StudyMate AI"}
 
 
 @app.get("/api/health")
-def health_check() -> dict[str, str]:
+def health_check() -> dict:
     return {"status": "ok"}
 
 
-# PDF Upload
+# Multi-file upload
 @app.post("/api/upload-pdf")
-async def upload_pdf(file: UploadFile = File(...)):
-
-    if file.content_type != "application/pdf":
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF files are allowed.",
-        )
+@app.post("/api/upload-file")
+async def upload_file(file: UploadFile = File(...)):
 
     if not file.filename:
         raise HTTPException(
@@ -71,43 +76,70 @@ async def upload_pdf(file: UploadFile = File(...)):
             detail="No file name was provided.",
         )
 
-    max_size = 20 * 1024 * 1024
-    file_content = await file.read()
+    original_filename = Path(file.filename).name
+    extension = Path(original_filename).suffix.lower()
 
-    if len(file_content) > max_size:
+    if extension not in SUPPORTED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="PDF file must be smaller than 20 MB.",
+            detail="Unsupported file format.",
         )
 
-    safe_filename = Path(file.filename).name
-    file_path = UPLOAD_DIR / safe_filename
+    file_content = await file.read()
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(file_content)
+    if not file_content:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is empty.",
+        )
+
+    if len(file_content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File must be smaller than 20 MB.",
+        )
+
+    # Generate a unique storage name
+    stored_filename = f"{uuid4().hex}{extension}"
+    file_path = UPLOAD_DIR / stored_filename
 
     try:
-        extracted_text = extract_text_from_pdf(str(file_path))
+        file_path.write_bytes(file_content)
 
-    except Exception as error:
+        extracted_text = extract_text_from_file(
+            str(file_path)
+        )
+
+    except ValueError as error:
+        file_path.unlink(missing_ok=True)
+
         raise HTTPException(
             status_code=422,
-            detail=f"PDF text extraction failed: {error}",
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        file_path.unlink(missing_ok=True)
+
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read this file. Please check its format.",
         ) from error
 
     return {
-        "message": "PDF uploaded and text extracted successfully.",
-        "filename": safe_filename,
+        "message": "File uploaded and text extracted successfully.",
+        "filename": stored_filename,
+        "original_filename": original_filename,
+        "file_type": extension,
         "size": len(file_content),
-        "path": str(file_path),
         "extracted_text": extracted_text,
     }
 
 
-# PDF Chat
+# AI Chat
 class PDFChatRequest(BaseModel):
     filename: str
-    question: str
+    question: str = Field(min_length=1, max_length=2000)
 
 
 @app.post("/api/chat-pdf")
@@ -116,17 +148,17 @@ async def chat_with_pdf(request: PDFChatRequest):
     safe_filename = Path(request.filename).name
     file_path = UPLOAD_DIR / safe_filename
 
-    if not file_path.exists():
+    if not file_path.is_file():
         raise HTTPException(
             status_code=404,
-            detail="PDF not found. Please upload the PDF first.",
+            detail="File not found. Please upload the file first.",
         )
 
     try:
-        pdf_text = extract_text_from_pdf(str(file_path))
+        file_text = extract_text_from_file(str(file_path))
 
         answer = ask_question_from_pdf(
-            pdf_text,
+            file_text,
             request.question,
         )
 
@@ -140,33 +172,33 @@ async def chat_with_pdf(request: PDFChatRequest):
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"AI question answering failed: {error}",
+            detail="AI question answering failed.",
         ) from error
 
 
-# PDF Summarizer
+# AI Summarizer
 class PDFSummaryRequest(BaseModel):
     filename: str
 
 
 @app.post("/api/summarize-pdf")
-async def summarize_uploaded_pdf(request: PDFSummaryRequest):
+async def summarize_uploaded_file(request: PDFSummaryRequest):
 
     safe_filename = Path(request.filename).name
     file_path = UPLOAD_DIR / safe_filename
 
-    if not file_path.exists():
+    if not file_path.is_file():
         raise HTTPException(
             status_code=404,
-            detail="PDF not found. Please upload the PDF first.",
+            detail="File not found. Please upload the file first.",
         )
 
     try:
-        pdf_text = extract_text_from_pdf(str(file_path))
-        summary = summarize_pdf(pdf_text)
+        file_text = extract_text_from_file(str(file_path))
+        summary = summarize_pdf(file_text)
 
         return {
-            "message": "PDF summarized successfully.",
+            "message": "File summarized successfully.",
             "filename": safe_filename,
             "summary": summary,
         }
@@ -174,7 +206,7 @@ async def summarize_uploaded_pdf(request: PDFSummaryRequest):
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"PDF summarization failed: {error}",
+            detail="File summarization failed.",
         ) from error
 
 
@@ -215,7 +247,7 @@ async def generate_ai_quiz(request: QuizRequest):
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"Quiz generation failed: {error}",
+            detail="Quiz generation failed.",
         ) from error
 
 
@@ -250,5 +282,5 @@ async def generate_ai_flashcards(request: FlashcardRequest):
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=f"Flashcard generation failed: {error}",
+            detail="Flashcard generation failed.",
         ) from error

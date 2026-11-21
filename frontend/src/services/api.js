@@ -1,9 +1,7 @@
 const API_BASE_URL = "https://studymate-ai-backend-ow3g.onrender.com";
 
 export async function checkBackendHealth() {
-  const response = await fetch(
-    `${API_BASE_URL}/api/health`
-  );
+  const response = await fetch(`${API_BASE_URL}/api/health`);
 
   if (!response.ok) {
     throw new Error("Backend is not available.");
@@ -12,12 +10,13 @@ export async function checkBackendHealth() {
   return response.json();
 }
 
-export async function uploadPDF(file) {
+// Upload supported study documents
+export async function uploadFile(file) {
   const formData = new FormData();
   formData.append("file", file);
 
   const response = await fetch(
-    `${API_BASE_URL}/api/upload-pdf`,
+    `${API_BASE_URL}/api/upload-file`,
     {
       method: "POST",
       body: formData,
@@ -27,13 +26,18 @@ export async function uploadPDF(file) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.detail || "PDF upload failed.");
+    throw new Error(data.detail || "File upload failed.");
   }
 
   return data;
 }
 
-// Chat with uploaded PDF
+// Keep old function name for existing components
+export async function uploadPDF(file) {
+  return uploadFile(file);
+}
+
+// Chat with uploaded document
 export async function chatWithPDF(filename, question) {
   const response = await fetch(
     `${API_BASE_URL}/api/chat-pdf`,
@@ -57,7 +61,8 @@ export async function chatWithPDF(filename, question) {
 
   return data;
 }
-// Summarize uploaded PDF
+
+// Summarize uploaded document
 export async function summarizePDF(filename) {
   const response = await fetch(
     `${API_BASE_URL}/api/summarize-pdf`,
@@ -75,11 +80,12 @@ export async function summarizePDF(filename) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(data.detail || "PDF summarization failed.");
+    throw new Error(data.detail || "Document summarization failed.");
   }
 
   return data;
 }
+
 // Generate AI Quiz
 export async function generateQuiz(topic, difficulty, count, quiz_mode) {
   const response = await fetch(
@@ -106,6 +112,7 @@ export async function generateQuiz(topic, difficulty, count, quiz_mode) {
 
   return data;
 }
+
 // Generate AI Flashcards
 export async function generateFlashcards(topic, count) {
   const response = await fetch(
