@@ -1,5 +1,14 @@
 const API_BASE_URL = "https://studymate-ai-backend-ow3g.onrender.com";
 
+// Automatically attach the logged-in user's token
+function getAuthHeaders() {
+  const token = localStorage.getItem("access_token");
+
+  return token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
 export async function checkBackendHealth() {
   const response = await fetch(`${API_BASE_URL}/api/health`);
 
@@ -15,13 +24,11 @@ export async function uploadFile(file) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/upload-file`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/upload-file`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: formData,
+  });
 
   const data = await response.json().catch(() => ({}));
 
@@ -32,26 +39,20 @@ export async function uploadFile(file) {
   return data;
 }
 
-// Keep old function name for existing components
 export async function uploadPDF(file) {
   return uploadFile(file);
 }
 
 // Chat with uploaded document
 export async function chatWithPDF(filename, question) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/chat-pdf`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        filename,
-        question,
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/chat-pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ filename, question }),
+  });
 
   const data = await response.json().catch(() => ({}));
 
@@ -64,18 +65,14 @@ export async function chatWithPDF(filename, question) {
 
 // Summarize uploaded document
 export async function summarizePDF(filename) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/summarize-pdf`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        filename,
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/summarize-pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ filename }),
+  });
 
   const data = await response.json().catch(() => ({}));
 
@@ -88,21 +85,19 @@ export async function summarizePDF(filename) {
 
 // Generate AI Quiz
 export async function generateQuiz(topic, difficulty, count, quiz_mode) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/generate-quiz`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        topic,
-        difficulty,
-        count: Number(count),
-        quiz_mode,
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/generate-quiz`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({
+      topic,
+      difficulty,
+      count: Number(count),
+      quiz_mode,
+    }),
+  });
 
   const data = await response.json().catch(() => ({}));
 
@@ -115,26 +110,22 @@ export async function generateQuiz(topic, difficulty, count, quiz_mode) {
 
 // Generate AI Flashcards
 export async function generateFlashcards(topic, count) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/generate-flashcards`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        topic,
-        count: Number(count),
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/api/generate-flashcards`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({
+      topic,
+      count: Number(count),
+    }),
+  });
 
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(
-      data.detail || "AI Flashcard generation failed."
-    );
+    throw new Error(data.detail || "AI Flashcard generation failed.");
   }
 
   return data;
