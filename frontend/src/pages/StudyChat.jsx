@@ -198,8 +198,8 @@ function StudyChat() {
                     <div className="chat-message-bubble"> 
                        {item.role === "assistant" ? (
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {item.text} 
-                              </ReactMarkdown>
+  {item.text?.replace(/<br\s*\/?>/gi, "\n")}
+</ReactMarkdown>
                                ) : (
                                 item.text
                                   )}
