@@ -33,6 +33,7 @@ langchain-ollama
 langchain-chroma
 langchain-text-splitters
 langchain-groq
+groq
 
 # Vector Database
 chromadb

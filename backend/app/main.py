@@ -9,6 +9,7 @@ from fastapi import (
     UploadFile,
     HTTPException,
     Depends,
+    Form,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -24,7 +25,10 @@ from database import engine, get_db
 
 from app.services.flashcard_service import generate_flashcards
 from app.services.summary_service import summarize_pdf
-from app.services.chat_service import ask_question_from_pdf
+from app.services.chat_service import (
+    ask_question_from_pdf,
+    ask_question_from_image,
+)
 from app.services.quiz_service import generate_quiz
 from app.services.file_extractor import (
     extract_text_from_file,
@@ -56,6 +60,7 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_FILE_SIZE = 20 * 1024 * 1024
+MAX_IMAGE_SIZE = 10 * 1024 * 1024
 
 
 @app.get("/")
@@ -67,6 +72,8 @@ def read_root() -> dict:
 def health_check() -> dict:
     return {"status": "ok"}
 
+
+# DOCUMENT UPLOAD
 
 @app.post("/api/upload-pdf")
 @app.post("/api/upload-file")
@@ -153,6 +160,8 @@ async def upload_file(
     }
 
 
+# DOCUMENT CHAT
+
 class PDFChatRequest(BaseModel):
     filename: str
     question: str = Field(min_length=1, max_length=2000)
@@ -209,6 +218,94 @@ async def chat_with_pdf(
         ) from error
 
 
+# IMAGE UPLOAD AND AI CHAT
+
+@app.post("/api/chat-image")
+async def chat_with_image(
+    file: UploadFile = File(...),
+    question: str = Form(..., min_length=1, max_length=2000),
+    current_user: User = Depends(get_current_user),
+):
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Please select an image.",
+        )
+
+    extension = Path(file.filename).suffix.lower()
+
+    image_types = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+    }
+
+    if extension not in image_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, JPEG and PNG images are supported.",
+        )
+
+    image_bytes = await file.read()
+
+    if not image_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="The selected image is empty.",
+        )
+
+    if len(image_bytes) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be smaller than 10 MB.",
+        )
+
+    mime_type = image_types[extension]
+
+    # Validate actual image file signature.
+    if mime_type == "image/jpeg":
+        valid_image = image_bytes.startswith(b"\xff\xd8\xff")
+    else:
+        valid_image = image_bytes.startswith(
+            b"\x89PNG\r\n\x1a\n"
+        )
+
+    if not valid_image:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image file.",
+        )
+
+    try:
+        answer = ask_question_from_image(
+            image_bytes,
+            mime_type,
+            question,
+        )
+
+        return {
+            "message": "Image analyzed successfully.",
+            "question": question,
+            "answer": answer,
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print("IMAGE CHAT ERROR:", repr(error))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Image analysis failed. Please try again.",
+        ) from error
+
+
+# DOCUMENT SUMMARY
+
 class PDFSummaryRequest(BaseModel):
     filename: str
 
@@ -259,6 +356,8 @@ async def summarize_uploaded_file(
         ) from error
 
 
+# QUIZ
+
 class QuizRequest(BaseModel):
     topic: str
     difficulty: str
@@ -302,6 +401,8 @@ async def generate_ai_quiz(
             detail="Quiz generation failed.",
         ) from error
 
+
+# FLASHCARDS
 
 class FlashcardRequest(BaseModel):
     topic: str

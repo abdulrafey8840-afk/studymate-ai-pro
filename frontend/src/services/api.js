@@ -63,6 +63,28 @@ export async function chatWithPDF(filename, question) {
   return data;
 }
 
+// NEW: Ask AI questions about an image
+export async function chatWithImage(file, question) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("question", question);
+
+  const response = await fetch(`${API_BASE_URL}/api/chat-image`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.detail || "Image AI chat failed.");
+  }
+
+  return data;
+}
+
 // Summarize uploaded document
 export async function summarizePDF(filename) {
   const response = await fetch(`${API_BASE_URL}/api/summarize-pdf`, {

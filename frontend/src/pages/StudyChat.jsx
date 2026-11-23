@@ -11,21 +11,47 @@ import {
   LoaderCircle,
   X,
   MessageSquare,
+  Image,
 } from "lucide-react";
 
-import { uploadPDF, chatWithPDF } from "../services/api";
+import {
+  uploadFile,
+  chatWithPDF,
+  chatWithImage,
+} from "../services/api";
+
 import "./StudyChat.css";
 
 function StudyChat() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [filename, setFilename] = useState("");
+  const [originalFilename, setOriginalFilename] = useState("");
+  const [selectedImage, setSelectedImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const allowedExtensions = [
+    ".pdf",
+    ".docx",
+    ".xlsx",
+    ".xls",
+    ".pptx",
+    ".txt",
+    ".md",
+    ".csv",
+  ];
+
+  const allowedImageExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+  ];
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -33,13 +59,33 @@ function StudyChat() {
     });
   }, [messages, loading]);
 
+  // Upload study documents
   const handlePDFUpload = async (event) => {
     const file = event.target.files?.[0];
 
     if (!file) return;
 
-    if (file.type !== "application/pdf") {
-      setError("Please select a PDF file.");
+    const extension = file.name
+      .substring(file.name.lastIndexOf("."))
+      .toLowerCase();
+
+    if (!allowedExtensions.includes(extension)) {
+      setError(
+        "Unsupported file. Please upload PDF, Word, Excel, PowerPoint, TXT, CSV or MD."
+      );
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setError("File must be smaller than 20 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size === 0) {
+      setError("The selected file is empty.");
+      event.target.value = "";
       return;
     }
 
@@ -47,21 +93,87 @@ function StudyChat() {
     setError("");
 
     try {
-      const data = await uploadPDF(file);
+      const data = await uploadFile(file);
 
       setFilename(data.filename);
+      setOriginalFilename(
+        data.original_filename || file.name
+      );
+
+      setSelectedImage(null);
       setMessages([]);
+      setMessage("");
       setError("");
     } catch (err) {
-      setError(err.message || "PDF upload failed.");
+      setError(err.message || "File upload failed.");
     } finally {
       setUploading(false);
       event.target.value = "";
     }
   };
 
+  // Select image for AI understanding
+  const handleImageUpload = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    const extension = file.name
+      .substring(file.name.lastIndexOf("."))
+      .toLowerCase();
+
+    if (!allowedImageExtensions.includes(extension)) {
+      setError("Please upload a JPG, JPEG or PNG image.");
+      event.target.value = "";
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError("Invalid image format. Please select a JPG or PNG image.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Image must be smaller than 10 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size === 0) {
+      setError("The selected image is empty.");
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedImage(file);
+
+    // Clear document selection to avoid confusion
+    setFilename("");
+    setOriginalFilename("");
+
+    setMessages([]);
+    setMessage("");
+    setError("");
+
+    event.target.value = "";
+  };
+
+  // Send question to AI
   const sendMessage = async () => {
-    if (!message.trim() || !filename || loading) return;
+    if (
+      !message.trim() ||
+      (!filename && !selectedImage) ||
+      loading ||
+      uploading
+    ) {
+      return;
+    }
 
     const question = message.trim();
 
@@ -75,13 +187,25 @@ function StudyChat() {
     setError("");
 
     try {
-      const data = await chatWithPDF(filename, question);
+      let data;
+
+      if (selectedImage) {
+        data = await chatWithImage(
+          selectedImage,
+          question
+        );
+      } else {
+        data = await chatWithPDF(
+          filename,
+          question
+        );
+      }
 
       setMessages((old) => [
         ...old,
         {
           role: "assistant",
-          text: data.answer,
+          text: data.answer || "Sorry, I could not generate an answer.",
         },
       ]);
     } catch (err) {
@@ -96,6 +220,12 @@ function StudyChat() {
     setError("");
   };
 
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+    setMessage("");
+    setError("");
+  };
+
   return (
     <div className="page chat-page">
       <div className="chat-header">
@@ -103,7 +233,9 @@ function StudyChat() {
           <span className="chat-eyebrow">
             YOUR PERSONAL LEARNING ASSISTANT
           </span>
+
           <h1>AI Study Chat</h1>
+
           <p>Learn smarter. Understand faster.</p>
         </div>
 
@@ -140,8 +272,8 @@ function StudyChat() {
               <h2>What would you like to learn today?</h2>
 
               <p>
-                Upload your study PDF and let StudyMate AI
-                explain difficult concepts in simple language.
+                Upload a study document or an image of your notes.
+                StudyMate AI will help you understand difficult concepts.
               </p>
 
               <div className="chat-suggestions">
@@ -171,6 +303,15 @@ function StudyChat() {
                   <MessageSquare size={16} />
                   Revision notes
                 </button>
+
+                <button
+                  onClick={() =>
+                    setMessage("Read the text in this image and explain it.")
+                  }
+                >
+                  <Image size={16} />
+                  Read my image
+                </button>
               </div>
             </div>
           ) : (
@@ -195,15 +336,18 @@ function StudyChat() {
                         : "You"}
                     </span>
 
-                    <div className="chat-message-bubble"> 
-                       {item.role === "assistant" ? (
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-  {item.text?.replace(/<br\s*\/?>/gi, "\n")}
-</ReactMarkdown>
-                               ) : (
-                                item.text
-                                  )}
-                                  </div>
+                    <div className="chat-message-bubble">
+                      {item.role === "assistant" ? (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {item.text?.replace(
+                            /<br\s*\/?>/gi,
+                            "\n"
+                          )}
+                        </ReactMarkdown>
+                      ) : (
+                        item.text
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -244,11 +388,33 @@ function StudyChat() {
           {filename && (
             <div className="attached-pdf">
               <FileText size={18} />
+
               <div>
-                <strong>{filename}</strong>
-                <small>PDF uploaded successfully</small>
+                <strong>{originalFilename}</strong>
+                <small>Document uploaded successfully</small>
               </div>
+
               <span className="pdf-ready">Ready</span>
+            </div>
+          )}
+
+          {selectedImage && (
+            <div className="attached-pdf">
+              <Image size={18} />
+
+              <div>
+                <strong>{selectedImage.name}</strong>
+                <small>Image selected for AI understanding</small>
+              </div>
+
+              <button
+                type="button"
+                onClick={removeSelectedImage}
+                disabled={loading}
+                aria-label="Remove selected image"
+              >
+                <X size={18} />
+              </button>
             </div>
           )}
 
@@ -256,29 +422,50 @@ function StudyChat() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,application/pdf"
+              accept=".pdf,.docx,.xlsx,.xls,.pptx,.txt,.md,.csv"
               onChange={handlePDFUpload}
               hidden
             />
 
-            <button
-              className="chat-upload-btn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || loading}
-            >
-              {uploading ? (
-                <LoaderCircle size={19} className="spin" />
-              ) : (
-                <Upload size={19} />
-              )}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+              onChange={handleImageUpload}
+              hidden
+            />
 
-              {uploading ? "Uploading PDF..." : "Upload PDF"}
-            </button>
+            <div className="chat-upload-buttons">
+              <button
+                className="chat-upload-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || loading}
+              >
+                {uploading ? (
+                  <LoaderCircle size={19} className="spin" />
+                ) : (
+                  <Upload size={19} />
+                )}
+
+                {uploading ? "Uploading..." : "Upload Document"}
+              </button>
+
+              <button
+                className="chat-upload-btn"
+                onClick={() => imageInputRef.current?.click()}
+                disabled={uploading || loading}
+              >
+                <Image size={19} />
+                Upload Image
+              </button>
+            </div>
 
             <span>
-              {filename
-                ? "Your document is ready for questions"
-                : "Upload a PDF to start your conversation"}
+              {selectedImage
+                ? "Ask questions about your selected image"
+                : filename
+                  ? "Your document is ready for questions"
+                  : "Documents: Max 20 MB | Images: JPG, JPEG, PNG (Max 10 MB)"}
             </span>
           </div>
 
@@ -298,11 +485,17 @@ function StudyChat() {
                 }
               }}
               placeholder={
-                filename
-                  ? "Ask anything about your PDF..."
-                  : "Upload a PDF first..."
+                selectedImage
+                  ? "Ask anything about your image..."
+                  : filename
+                    ? "Ask anything about your document..."
+                    : "Upload a document or image first..."
               }
-              disabled={!filename || loading || uploading}
+              disabled={
+                (!filename && !selectedImage) ||
+                loading ||
+                uploading
+              }
               rows={1}
             />
 
@@ -310,8 +503,9 @@ function StudyChat() {
               className="chat-send-btn"
               onClick={sendMessage}
               disabled={
-                !filename ||
+                (!filename && !selectedImage) ||
                 loading ||
+                uploading ||
                 !message.trim()
               }
               aria-label="Send message"
